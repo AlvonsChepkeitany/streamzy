@@ -24,13 +24,17 @@ from security import (
 )
 
 # Configure logging
+log_handlers = [logging.StreamHandler()]
+# Only add file handler if we can write to it
+try:
+    log_handlers.append(logging.FileHandler('streamzy.log'))
+except (PermissionError, OSError):
+    pass  # Skip file logging in production if no write access
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('streamzy.log'),
-        logging.StreamHandler()
-    ]
+    handlers=log_handlers
 )
 logger = logging.getLogger(__name__)
 

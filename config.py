@@ -4,13 +4,22 @@ Configuration settings for Streamzy Chat Platform
 import os
 from datetime import timedelta
 
+def get_database_uri():
+    """Get database URI based on environment"""
+    if os.environ.get('DATABASE_URL'):
+        return os.environ.get('DATABASE_URL')
+    # Use /tmp for production environments without persistent storage
+    if os.environ.get('FLASK_ENV') == 'production':
+        return 'sqlite:////tmp/streamzy.db'
+    return 'sqlite:///streamzy.db'
+
 class Config:
     """Base configuration"""
     # Flask
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-super-secret-key-change-in-production'
     
     # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///streamzy.db'
+    SQLALCHEMY_DATABASE_URI = get_database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Session
