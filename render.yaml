@@ -1,7 +1,7 @@
 # Render.com deployment configuration
 services:
   - type: web
-    name: streamzy
+    name: termchat-alvons
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT app:app
