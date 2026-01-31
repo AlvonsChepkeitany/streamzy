@@ -393,3 +393,210 @@
         display: none;
     }
 }
+
+/* ============================================
+   Room List
+   ============================================ */
+.sidebar-section {
+    border-bottom: var(--border-dim);
+}
+
+.sidebar-section:last-of-type {
+    border-bottom: none;
+    flex: 1;
+}
+
+.btn-small {
+    background: transparent;
+    border: 1px solid var(--primary-green);
+    color: var(--primary-green);
+    padding: 2px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.btn-small:hover {
+    background: var(--dark-green);
+}
+
+.room-list {
+    max-height: 150px;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+}
+
+.room-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: 4px;
+    margin-bottom: var(--spacing-xs);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.room-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.room-item.active {
+    background: var(--dark-green);
+    border-left: 2px solid var(--primary-green);
+}
+
+.room-icon {
+    font-size: 14px;
+}
+
+.room-name {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.room-item.active .room-name {
+    color: var(--primary-green);
+}
+
+.no-rooms {
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: var(--spacing-sm);
+    text-align: center;
+}
+
+/* ============================================
+   Modal
+   ============================================ */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: var(--bg-primary);
+    border: var(--border-terminal);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-bottom: var(--border-dim);
+}
+
+.modal-header h3 {
+    color: var(--primary-green);
+    font-size: 14px;
+    text-shadow: var(--glow-green);
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.close-btn:hover {
+    color: var(--accent-red);
+}
+
+.modal-body {
+    padding: var(--spacing-md);
+}
+
+.form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.form-group label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.terminal-input {
+    width: 100%;
+    background: var(--bg-tertiary);
+    border: var(--border-dim);
+    color: var(--text-primary);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    border-radius: 4px;
+}
+
+.terminal-input:focus {
+    outline: none;
+    border-color: var(--primary-green);
+    box-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
+}
+
+.error-msg {
+    color: var(--accent-red);
+    font-size: 12px;
+    padding: var(--spacing-sm);
+    background: rgba(255, 0, 0, 0.1);
+    border-radius: 4px;
+    margin-top: var(--spacing-sm);
+}
+
+.modal-footer {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+    padding: var(--spacing-md);
+    border-top: var(--border-dim);
+}
+
+.btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--dark-green);
+    border: 1px solid var(--primary-green);
+    color: var(--primary-green);
+}
+
+.btn-primary:hover {
+    background: var(--primary-green);
+    color: var(--bg-primary);
+}
+
+.btn-secondary {
+    background: transparent;
+    border: var(--border-dim);
+    color: var(--text-muted);
+}
+
+.btn-secondary:hover {
+    border-color: var(--text-secondary);
+    color: var(--text-secondary);
+}

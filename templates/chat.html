@@ -8,21 +8,38 @@
 
 {% block content %}
 <div class="chat-container">
-    <!-- Sidebar - Users Panel -->
+    <!-- Sidebar - Rooms & Users Panel -->
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h3 class="sidebar-title">
-                <span class="icon">👥</span> ONLINE
-            </h3>
-            <span class="user-count" id="userCount">0</span>
+        <!-- Rooms Section -->
+        <div class="sidebar-section">
+            <div class="sidebar-header">
+                <h3 class="sidebar-title">
+                    <span class="icon">📁</span> ROOMS
+                </h3>
+                <button class="btn-small" id="joinRoomBtn" title="Join Room">+</button>
+            </div>
+            <div class="room-list" id="roomList">
+                <div class="no-rooms">No rooms joined yet</div>
+            </div>
         </div>
-        <div class="user-list" id="userList">
-            <!-- Users will be populated here -->
+        
+        <!-- Users Section -->
+        <div class="sidebar-section">
+            <div class="sidebar-header">
+                <h3 class="sidebar-title">
+                    <span class="icon">👥</span> ONLINE
+                </h3>
+                <span class="user-count" id="userCount">0</span>
+            </div>
+            <div class="user-list" id="userList">
+                <!-- Users will be populated here -->
+            </div>
         </div>
+        
         <div class="sidebar-footer">
             <div class="current-room">
                 <span class="label">ROOM:</span>
-                <span class="room-name" id="currentRoom">general</span>
+                <span class="room-name" id="currentRoom">none</span>
             </div>
         </div>
     </aside>
@@ -31,11 +48,11 @@
     <main class="main-terminal">
         <div class="terminal-window fullscreen">
             <div class="terminal-header">
-                <span class="terminal-title">
-                    STREAMZY_TERMINAL :: {{ user.username }}@general
+                <span class="terminal-title" id="terminalTitle">
+                    STREAMZY_TERMINAL :: {{ user.username }}@none
                 </span>
                 <div class="terminal-controls">
-                    <button class="control-btn" id="toggleSidebar" title="Toggle Users">
+                    <button class="control-btn" id="toggleSidebar" title="Toggle Sidebar">
                         <span class="icon">☰</span>
                     </button>
                     <button class="control-btn" id="clearTerminal" title="Clear Terminal">
@@ -63,19 +80,16 @@
                         </pre>
                     </div>
                     <div class="output-line system">
-                        <span class="timestamp">[{{ "now"|default("00:00:00") }}]</span>
                         <span class="prompt">SYSTEM://</span>
                         <span class="text">Welcome to Streamzy Secure Communications</span>
                     </div>
                     <div class="output-line system">
-                        <span class="timestamp"></span>
                         <span class="prompt">SYSTEM://</span>
                         <span class="text">All messages are end-to-end encrypted</span>
                     </div>
                     <div class="output-line system">
-                        <span class="timestamp"></span>
                         <span class="prompt">SYSTEM://</span>
-                        <span class="text">Type /help for available commands</span>
+                        <span class="text">Join a room to start chatting. Click [+] or use /join &lt;room&gt; &lt;password&gt;</span>
                     </div>
                     <div class="output-line system separator">
                         <span class="text">═══════════════════════════════════════════════════════════════════</span>
@@ -94,13 +108,13 @@
                     <span class="input-prompt">
                         <span class="username">{{ user.username }}</span>
                         <span class="separator">@</span>
-                        <span class="room">general</span>
+                        <span class="room" id="inputRoom">none</span>
                         <span class="cursor-symbol">&gt;</span>
                     </span>
                     <input type="text" 
                            id="messageInput" 
                            class="terminal-input-field"
-                           placeholder="Enter message or /help for commands"
+                           placeholder="Join a room to start chatting..."
                            autocomplete="off"
                            maxlength="2000">
                 </div>
@@ -116,6 +130,31 @@
             </div>
         </div>
     </main>
+</div>
+
+<!-- Join Room Modal -->
+<div class="modal hidden" id="joinRoomModal">
+    <div class="modal-content terminal-style">
+        <div class="modal-header">
+            <h3>JOIN ROOM</h3>
+            <button class="close-btn" onclick="closeJoinModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Room Name:</label>
+                <input type="text" id="joinRoomName" placeholder="Enter room name" class="terminal-input">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="joinRoomPassword" placeholder="Enter room password" class="terminal-input">
+            </div>
+            <div class="error-msg hidden" id="joinError"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="submitJoinRoom()">JOIN</button>
+            <button class="btn btn-secondary" onclick="closeJoinModal()">CANCEL</button>
+        </div>
+    </div>
 </div>
 
 <!-- Hidden data for JS -->

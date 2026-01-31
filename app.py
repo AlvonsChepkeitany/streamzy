@@ -15,7 +15,7 @@ load_dotenv()
 
 # Import local modules
 from config import config
-from models import db, bcrypt, User, Application, Message, Room, AuditLog, init_db
+from models import db, bcrypt, User, Application, Message, Room, RoomMember, AuditLog, init_db
 from encryption import encrypt_message, decrypt_message, get_encryption
 from email_service import email_service
 from security import (
@@ -263,11 +263,23 @@ def api_logout():
 @app.route('/api/messages', methods=['GET'])
 @login_required
 def api_get_messages():
-    """Get recent messages for a room"""
-    room = request.args.get('room', 'general')
+    """Get recent messages for a room - must be a member"""
+    room_name = request.args.get('room')
     limit = min(int(request.args.get('limit', 50)), 100)
+    user_id = session['user_id']
     
-    messages = Message.query.filter_by(room=room, is_deleted=False)\
+    if not room_name:
+        return jsonify({'error': 'Room name required'}), 400
+    
+    # Check room exists and user is a member
+    room = Room.query.filter_by(name=room_name, is_active=True).first()
+    if not room:
+        return jsonify({'error': 'Room not found'}), 404
+    
+    if not room.is_member(user_id):
+        return jsonify({'error': 'You are not a member of this room'}), 403
+    
+    messages = Message.query.filter_by(room=room_name, is_deleted=False)\
         .order_by(Message.created_at.desc())\
         .limit(limit)\
         .all()
@@ -293,11 +305,86 @@ def api_get_messages():
 @app.route('/api/rooms', methods=['GET'])
 @login_required
 def api_get_rooms():
-    """Get available chat rooms"""
-    rooms = Room.query.filter_by(is_active=True).all()
+    """Get rooms the user is a member of"""
+    user_id = session['user_id']
+    
+    # Get rooms user is a member of
+    memberships = RoomMember.query.filter_by(user_id=user_id).all()
+    room_ids = [m.room_id for m in memberships]
+    
+    rooms = Room.query.filter(Room.id.in_(room_ids), Room.is_active == True).all()
+    
     return jsonify({
         'rooms': [room.to_dict() for room in rooms]
     })
+
+
+@app.route('/api/rooms/join', methods=['POST'])
+@login_required
+@validate_input
+def api_join_room():
+    """Join a room with password"""
+    data = request.get_json()
+    
+    if not data or 'room_name' not in data or 'password' not in data:
+        return jsonify({'error': 'Room name and password required'}), 400
+    
+    room_name = data['room_name'].strip()
+    password = data['password']
+    user_id = session['user_id']
+    
+    # Find room
+    room = Room.query.filter_by(name=room_name, is_active=True).first()
+    if not room:
+        return jsonify({'error': 'Room not found'}), 404
+    
+    # Check if already a member
+    if room.is_member(user_id):
+        return jsonify({'error': 'Already a member of this room'}), 400
+    
+    # Check password
+    if not room.check_password(password):
+        log_security_event('room_join_failed', f'Wrong password for room {room_name}', user_id)
+        return jsonify({'error': 'Invalid room password'}), 401
+    
+    # Check max members
+    if room.get_member_count() >= room.max_members:
+        return jsonify({'error': 'Room is full'}), 400
+    
+    # Add member
+    room.add_member(user_id)
+    db.session.commit()
+    
+    log_security_event('room_joined', f'User joined room {room_name}', user_id)
+    
+    return jsonify({
+        'success': True,
+        'room': room.to_dict()
+    })
+
+
+@app.route('/api/rooms/leave', methods=['POST'])
+@login_required
+def api_leave_room():
+    """Leave a room"""
+    data = request.get_json()
+    
+    if not data or 'room_id' not in data:
+        return jsonify({'error': 'Room ID required'}), 400
+    
+    room_id = data['room_id']
+    user_id = session['user_id']
+    
+    room = db.session.get(Room, room_id)
+    if not room:
+        return jsonify({'error': 'Room not found'}), 404
+    
+    if room.remove_member(user_id):
+        db.session.commit()
+        log_security_event('room_left', f'User left room {room.name}', user_id)
+        return jsonify({'success': True})
+    
+    return jsonify({'error': 'Not a member of this room'}), 400
 
 
 @app.route('/api/users/online', methods=['GET'])
@@ -448,6 +535,154 @@ def api_admin_users():
     })
 
 
+# =============================================================================
+# ADMIN ROOM MANAGEMENT
+# =============================================================================
+
+@app.route('/api/admin/rooms', methods=['GET'])
+@admin_required
+def api_admin_rooms():
+    """Get all rooms"""
+    rooms = Room.query.order_by(Room.created_at.desc()).all()
+    return jsonify({
+        'rooms': [room.to_dict(include_members=True) for room in rooms]
+    })
+
+
+@app.route('/api/admin/rooms', methods=['POST'])
+@admin_required
+@validate_input
+def api_admin_create_room():
+    """Create a new room with password"""
+    data = request.get_json()
+    
+    if not data or 'name' not in data or 'password' not in data:
+        return jsonify({'error': 'Room name and password required'}), 400
+    
+    name = data['name'].strip().lower().replace(' ', '_')
+    password = data['password']
+    description = data.get('description', '')
+    max_members = data.get('max_members', 50)
+    
+    # Validate room name
+    if len(name) < 3 or len(name) > 50:
+        return jsonify({'error': 'Room name must be 3-50 characters'}), 400
+    
+    if not name.replace('_', '').isalnum():
+        return jsonify({'error': 'Room name can only contain letters, numbers, and underscores'}), 400
+    
+    # Check if room exists
+    if Room.query.filter_by(name=name).first():
+        return jsonify({'error': 'Room name already exists'}), 400
+    
+    # Validate password
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+    
+    # Create room
+    room = Room(
+        name=name,
+        description=description,
+        is_private=True,
+        max_members=max_members,
+        created_by=session['user_id']
+    )
+    room.set_password(password)
+    
+    db.session.add(room)
+    db.session.commit()
+    
+    log_security_event('room_created', f'Room created: {name}', session['user_id'])
+    logger.info(f"Room created: {name} by admin")
+    
+    return jsonify({
+        'success': True,
+        'room': room.to_dict(),
+        'password': password  # Return password so admin can share it
+    })
+
+
+@app.route('/api/admin/rooms/<int:room_id>', methods=['DELETE'])
+@admin_required
+def api_admin_delete_room(room_id):
+    """Delete a room"""
+    room = db.session.get(Room, room_id)
+    if not room:
+        abort(404)
+    
+    room_name = room.name
+    db.session.delete(room)
+    db.session.commit()
+    
+    log_security_event('room_deleted', f'Room deleted: {room_name}', session['user_id'])
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/rooms/<int:room_id>/password', methods=['PUT'])
+@admin_required
+@validate_input
+def api_admin_reset_room_password(room_id):
+    """Reset room password"""
+    room = db.session.get(Room, room_id)
+    if not room:
+        abort(404)
+    
+    data = request.get_json()
+    if not data or 'password' not in data:
+        return jsonify({'error': 'New password required'}), 400
+    
+    password = data['password']
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+    
+    room.set_password(password)
+    db.session.commit()
+    
+    log_security_event('room_password_reset', f'Password reset for room: {room.name}', session['user_id'])
+    
+    return jsonify({
+        'success': True,
+        'password': password
+    })
+
+
+@app.route('/api/admin/rooms/<int:room_id>/members', methods=['GET'])
+@admin_required
+def api_admin_room_members(room_id):
+    """Get room members"""
+    room = db.session.get(Room, room_id)
+    if not room:
+        abort(404)
+    
+    members = []
+    for m in room.members.all():
+        if m.user:
+            members.append({
+                'id': m.user.id,
+                'username': m.user.username,
+                'joined_at': m.joined_at.isoformat() if m.joined_at else None
+            })
+    
+    return jsonify({'members': members})
+
+
+@app.route('/api/admin/rooms/<int:room_id>/members/<int:user_id>', methods=['DELETE'])
+@admin_required
+def api_admin_remove_member(room_id, user_id):
+    """Remove a user from a room"""
+    room = db.session.get(Room, room_id)
+    if not room:
+        abort(404)
+    
+    if room.remove_member(user_id):
+        db.session.commit()
+        log_security_event('member_removed', f'User {user_id} removed from room {room.name}', session['user_id'])
+        return jsonify({'success': True})
+    
+    return jsonify({'error': 'User is not a member'}), 400
+
+
 @app.route('/api/admin/users/<int:user_id>/toggle', methods=['POST'])
 @admin_required
 def api_admin_toggle_user(user_id):
@@ -506,24 +741,25 @@ def handle_connect():
         disconnect()
         return False
     
-    # Store connection info
+    # Store connection info (no default room)
     connected_users[request.sid] = {
         'user_id': user.id,
         'username': user.username,
-        'room': 'general'
+        'room': None
     }
     
     user.update_activity()
     db.session.commit()
     
-    # Join default room
-    join_room('general')
+    # Send list of user's rooms
+    memberships = RoomMember.query.filter_by(user_id=user.id).all()
+    room_ids = [m.room_id for m in memberships]
+    rooms = Room.query.filter(Room.id.in_(room_ids), Room.is_active == True).all()
     
-    # Notify others
-    emit('user_joined', {
+    emit('connected', {
         'username': user.username,
-        'users': list(set(u['username'] for u in connected_users.values()))
-    }, room='general')
+        'rooms': [r.to_dict() for r in rooms]
+    })
     
     logger.info(f"User connected: {user.username}")
 
@@ -534,36 +770,64 @@ def handle_disconnect():
     if request.sid in connected_users:
         user_info = connected_users.pop(request.sid)
         
-        emit('user_left', {
-            'username': user_info['username'],
-            'users': list(set(u['username'] for u in connected_users.values()))
-        }, room=user_info.get('room', 'general'))
+        if user_info.get('room'):
+            emit('user_left', {
+                'username': user_info['username'],
+                'users': list(set(u['username'] for u in connected_users.values() if u.get('room') == user_info['room']))
+            }, room=user_info['room'])
         
         logger.info(f"User disconnected: {user_info['username']}")
 
 
 @socketio.on('join_room')
 def handle_join_room(data):
-    """Handle user joining a room"""
+    """Handle user joining a room - must be a member"""
     if 'user_id' not in session:
         return
     
-    room = data.get('room', 'general')
-    old_room = connected_users.get(request.sid, {}).get('room', 'general')
+    room_name = data.get('room')
+    if not room_name:
+        emit('error', {'message': 'Room name required'})
+        return
+    
+    user_id = session['user_id']
+    
+    # Check room exists and user is a member
+    room = Room.query.filter_by(name=room_name, is_active=True).first()
+    if not room:
+        emit('error', {'message': 'Room not found'})
+        return
+    
+    if not room.is_member(user_id):
+        emit('error', {'message': 'You are not a member of this room'})
+        return
+    
+    old_room = connected_users.get(request.sid, {}).get('room')
     
     if old_room:
         leave_room(old_room)
+        emit('user_left', {
+            'username': session['username']
+        }, room=old_room)
     
-    join_room(room)
+    join_room(room_name)
     
     if request.sid in connected_users:
-        connected_users[request.sid]['room'] = room
+        connected_users[request.sid]['room'] = room_name
     
-    emit('room_joined', {'room': room})
+    # Get users in this room
+    users_in_room = [u['username'] for u in connected_users.values() if u.get('room') == room_name]
+    
+    emit('room_joined', {
+        'room': room_name,
+        'room_info': room.to_dict(),
+        'users': users_in_room
+    })
+    
     emit('user_joined', {
         'username': session['username'],
-        'room': room
-    }, room=room)
+        'users': users_in_room
+    }, room=room_name, include_self=False)
 
 
 @socketio.on('message')
@@ -578,7 +842,18 @@ def handle_message(data):
         return
     
     content = data.get('content', '').strip()
-    room = data.get('room', 'general')
+    room_name = data.get('room')
+    
+    # Must have a room
+    if not room_name:
+        emit('error', {'message': 'No room selected'})
+        return
+    
+    # Check user is member of room
+    room = Room.query.filter_by(name=room_name, is_active=True).first()
+    if not room or not room.is_member(user.id):
+        emit('error', {'message': 'You are not a member of this room'})
+        return
     
     # Validate message
     if not content:
@@ -603,7 +878,7 @@ def handle_message(data):
     message = Message(
         user_id=user.id,
         encrypted_content=encrypted_content,
-        room=room,
+        room=room_name,
         message_type='text'
     )
     
@@ -618,7 +893,7 @@ def handle_message(data):
         'content': sanitized,
         'message_type': 'text',
         'created_at': message.created_at.isoformat()
-    }, room=room)
+    }, room=room_name)
 
 
 @socketio.on('typing')
@@ -627,11 +902,14 @@ def handle_typing(data):
     if 'user_id' not in session:
         return
     
-    room = data.get('room', 'general')
+    room_name = data.get('room')
+    if not room_name:
+        return
+    
     emit('user_typing', {
         'username': session['username'],
         'is_typing': data.get('is_typing', True)
-    }, room=room, include_self=False)
+    }, room=room_name, include_self=False)
 
 
 @socketio.on('command')

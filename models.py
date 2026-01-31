@@ -214,35 +214,102 @@ class Message(db.Model):
 
 
 class Room(db.Model):
-    """Chat room model"""
+    """Chat room model with password protection"""
     __tablename__ = 'rooms'
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.String(200))
     
+    # Password protection (hashed)
+    password_hash = db.Column(db.String(128))
+    
     # Room settings
-    is_private = db.Column(db.Boolean, default=False)
+    is_private = db.Column(db.Boolean, default=True)
     is_active = db.Column(db.Boolean, default=True)
+    max_members = db.Column(db.Integer, default=50)
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Creator
+    # Creator (admin only)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    creator = db.relationship('User', backref='created_rooms', foreign_keys=[created_by])
     
-    def to_dict(self):
+    # Members relationship
+    members = db.relationship('RoomMember', backref='room', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def set_password(self, password):
+        """Hash and set room password"""
+        self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+    
+    def check_password(self, password):
+        """Check if provided password matches hash"""
+        if not self.password_hash:
+            return True  # No password set
+        return bcrypt.check_password_hash(self.password_hash, password)
+    
+    def is_member(self, user_id):
+        """Check if user is a member of this room"""
+        return RoomMember.query.filter_by(room_id=self.id, user_id=user_id).first() is not None
+    
+    def add_member(self, user_id):
+        """Add a user to the room"""
+        if not self.is_member(user_id):
+            member = RoomMember(room_id=self.id, user_id=user_id)
+            db.session.add(member)
+            return True
+        return False
+    
+    def remove_member(self, user_id):
+        """Remove a user from the room"""
+        member = RoomMember.query.filter_by(room_id=self.id, user_id=user_id).first()
+        if member:
+            db.session.delete(member)
+            return True
+        return False
+    
+    def get_member_count(self):
+        """Get number of members in the room"""
+        return self.members.count()
+    
+    def to_dict(self, include_members=False):
         """Convert room to dictionary"""
-        return {
+        result = {
             'id': self.id,
             'name': self.name,
             'description': self.description,
             'is_private': self.is_private,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'has_password': self.password_hash is not None,
+            'max_members': self.max_members,
+            'member_count': self.get_member_count(),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_by': self.creator.username if self.creator else None
         }
+        if include_members:
+            result['members'] = [m.user.username for m in self.members.all() if m.user]
+        return result
     
     def __repr__(self):
         return f'<Room {self.name}>'
+
+
+class RoomMember(db.Model):
+    """Room membership model"""
+    __tablename__ = 'room_members'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Unique constraint
+    __table_args__ = (db.UniqueConstraint('room_id', 'user_id', name='unique_room_member'),)
+    
+    user = db.relationship('User', backref='room_memberships')
+    
+    def __repr__(self):
+        return f'<RoomMember room={self.room_id} user={self.user_id}>'
 
 
 class AuditLog(db.Model):
@@ -289,14 +356,6 @@ def init_db(app):
     with app.app_context():
         db.create_all()
         
-        # Create default room if not exists
-        if not Room.query.filter_by(name='general').first():
-            general_room = Room(
-                name='general',
-                description='General chat room for all users'
-            )
-            db.session.add(general_room)
-        
         # Create admin user if not exists
         admin = User.query.filter_by(username='admin').first()
         if not admin:
@@ -309,5 +368,8 @@ def init_db(app):
             )
             admin.set_password('changeme123!')  # Change this in production!
             db.session.add(admin)
+            db.session.commit()
+        
+        # No default room - admin must create groups with passwords
         
         db.session.commit()

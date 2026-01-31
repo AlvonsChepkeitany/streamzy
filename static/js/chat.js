@@ -1,12 +1,13 @@
 /**
  * Streamzy Chat Client
- * WebSocket-based real-time chat
+ * WebSocket-based real-time chat with password-protected rooms
  */
 
 class StreamzyChat {
     constructor() {
         this.socket = null;
-        this.currentRoom = 'general';
+        this.currentRoom = null;
+        this.rooms = [];
         this.commandHistory = [];
         this.historyIndex = -1;
         this.typingTimeout = null;
@@ -19,6 +20,7 @@ class StreamzyChat {
         this.input = document.getElementById('messageInput');
         this.userList = document.getElementById('userList');
         this.userCount = document.getElementById('userCount');
+        this.roomList = document.getElementById('roomList');
         this.typingIndicator = document.getElementById('typingIndicator');
         this.connectionStatus = document.getElementById('connectionStatus');
         this.charCount = document.getElementById('charCount');
@@ -30,7 +32,6 @@ class StreamzyChat {
     init() {
         this.setupSocket();
         this.setupEventListeners();
-        this.loadMessageHistory();
     }
     
     setupSocket() {
@@ -44,6 +45,7 @@ class StreamzyChat {
         
         // Connection events
         this.socket.on('connect', () => this.onConnect());
+        this.socket.on('connected', (data) => this.onConnected(data));
         this.socket.on('disconnect', () => this.onDisconnect());
         this.socket.on('connect_error', (error) => this.onConnectError(error));
         
@@ -86,9 +88,15 @@ class StreamzyChat {
             logoutBtn.addEventListener('click', () => this.logout());
         }
         
+        // Join room button
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        if (joinRoomBtn) {
+            joinRoomBtn.addEventListener('click', () => this.showJoinModal());
+        }
+        
         // Focus input on click
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('button') && !e.target.closest('a') && !e.target.closest('.sidebar')) {
+            if (!e.target.closest('button') && !e.target.closest('a') && !e.target.closest('.sidebar') && !e.target.closest('.modal')) {
                 this.input.focus();
             }
         });
@@ -102,9 +110,24 @@ class StreamzyChat {
     // ========================================
     
     onConnect() {
+        this.updateConnectionStatus('connecting', 'Connecting...');
+    }
+    
+    onConnected(data) {
         this.updateConnectionStatus('connected', 'Connected');
         this.reconnectAttempts = 0;
         this.addSystemMessage('Connected to server');
+        
+        // Update rooms list
+        this.rooms = data.rooms || [];
+        this.updateRoomList();
+        
+        // Auto-join first room if available
+        if (this.rooms.length > 0) {
+            this.joinRoom(this.rooms[0].name);
+        } else {
+            this.addSystemMessage('You are not a member of any rooms. Use /join <room> <password> or click [+] to join a room.');
+        }
     }
     
     onDisconnect() {
@@ -141,13 +164,17 @@ class StreamzyChat {
     }
     
     onUserJoined(data) {
-        this.addSystemMessage(`${data.username} joined the chat`);
-        this.updateUserList(data.users);
+        this.addSystemMessage(`${data.username} joined the room`);
+        if (data.users) {
+            this.updateUserList(data.users);
+        }
     }
     
     onUserLeft(data) {
-        this.addSystemMessage(`${data.username} left the chat`);
-        this.updateUserList(data.users);
+        this.addSystemMessage(`${data.username} left the room`);
+        if (data.users) {
+            this.updateUserList(data.users);
+        }
     }
     
     onUserTyping(data) {
@@ -162,7 +189,25 @@ class StreamzyChat {
     onRoomJoined(data) {
         this.currentRoom = data.room;
         document.getElementById('currentRoom').textContent = data.room;
+        document.getElementById('inputRoom').textContent = data.room;
+        document.getElementById('terminalTitle').textContent = `STREAMZY_TERMINAL :: ${window.currentUser.username}@${data.room}`;
+        
+        // Enable input
+        this.input.disabled = false;
+        this.input.placeholder = 'Enter message or /help for commands';
+        
         this.addSystemMessage(`Joined room: ${data.room}`);
+        
+        // Update user list
+        if (data.users) {
+            this.updateUserList(data.users);
+        }
+        
+        // Update room list highlight
+        this.updateRoomListHighlight();
+        
+        // Load message history for this room
+        this.loadMessageHistory();
     }
     
     onCommandResponse(data) {
@@ -173,6 +218,39 @@ class StreamzyChat {
     
     onError(data) {
         this.addSystemMessage(data.message, 'error');
+    }
+    
+    // ========================================
+    // Room Management
+    // ========================================
+    
+    joinRoom(roomName) {
+        this.socket.emit('join_room', { room: roomName });
+    }
+    
+    showJoinModal() {
+        document.getElementById('joinRoomModal').classList.remove('hidden');
+        document.getElementById('joinRoomName').focus();
+    }
+    
+    updateRoomList() {
+        if (this.rooms.length === 0) {
+            this.roomList.innerHTML = '<div class="no-rooms">No rooms joined yet</div>';
+            return;
+        }
+        
+        this.roomList.innerHTML = this.rooms.map(room => `
+            <div class="room-item ${room.name === this.currentRoom ? 'active' : ''}" data-room="${room.name}" onclick="chat.joinRoom('${room.name}')">
+                <span class="room-icon">📁</span>
+                <span class="room-name">${Terminal.escapeHtml(room.name)}</span>
+            </div>
+        `).join('');
+    }
+    
+    updateRoomListHighlight() {
+        document.querySelectorAll('.room-item').forEach(el => {
+            el.classList.toggle('active', el.dataset.room === this.currentRoom);
+        });
     }
     
     // ========================================
@@ -209,6 +287,8 @@ class StreamzyChat {
     }
     
     handleInput(e) {
+        if (!this.currentRoom) return;
+        
         // Send typing indicator
         if (!this.isTyping) {
             this.isTyping = true;
@@ -231,6 +311,26 @@ class StreamzyChat {
         const content = this.input.value.trim();
         
         if (!content) return;
+        
+        // Handle /join command specially
+        if (content.startsWith('/join ')) {
+            const parts = content.substring(6).split(' ');
+            if (parts.length >= 2) {
+                this.apiJoinRoom(parts[0], parts.slice(1).join(' '));
+                this.input.value = '';
+                this.charCount.textContent = '0';
+                return;
+            } else {
+                this.addSystemMessage('Usage: /join <room_name> <password>', 'error');
+                return;
+            }
+        }
+        
+        // Require room for non-join commands
+        if (!this.currentRoom && !content.startsWith('/join')) {
+            this.addSystemMessage('You must join a room first. Use /join <room> <password>', 'error');
+            return;
+        }
         
         // Add to history
         this.commandHistory.push(content);
@@ -258,7 +358,39 @@ class StreamzyChat {
             clearTimeout(this.typingTimeout);
         }
         this.isTyping = false;
-        this.socket.emit('typing', { room: this.currentRoom, is_typing: false });
+        if (this.currentRoom) {
+            this.socket.emit('typing', { room: this.currentRoom, is_typing: false });
+        }
+    }
+    
+    async apiJoinRoom(roomName, password) {
+        try {
+            const response = await fetch('/api/rooms/join', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.CSRF_TOKEN
+                },
+                body: JSON.stringify({
+                    room_name: roomName,
+                    password: password
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.addSystemMessage(`Successfully joined room: ${roomName}`);
+                this.rooms.push(data.room);
+                this.updateRoomList();
+                this.joinRoom(roomName);
+            } else {
+                this.addSystemMessage(data.error || 'Failed to join room', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to join room:', error);
+            this.addSystemMessage('Failed to join room', 'error');
+        }
     }
     
     navigateHistory(direction) {
@@ -288,7 +420,7 @@ class StreamzyChat {
         
         // Command autocomplete
         if (value.startsWith('/')) {
-            const commands = ['/help', '/users', '/rooms', '/join ', '/clear', '/whoami', '/time'];
+            const commands = ['/help', '/users', '/rooms', '/join ', '/leave', '/clear', '/whoami', '/time'];
             const matches = commands.filter(cmd => cmd.startsWith(value));
             
             if (matches.length === 1) {
@@ -364,6 +496,8 @@ class StreamzyChat {
     // ========================================
     
     async loadMessageHistory() {
+        if (!this.currentRoom) return;
+        
         try {
             const response = await fetch(`/api/messages?room=${this.currentRoom}&limit=50`);
             const data = await response.json();
@@ -406,6 +540,29 @@ class StreamzyChat {
         
         window.location.href = '/login';
     }
+}
+
+// Global functions for modal
+function closeJoinModal() {
+    document.getElementById('joinRoomModal').classList.add('hidden');
+    document.getElementById('joinRoomName').value = '';
+    document.getElementById('joinRoomPassword').value = '';
+    document.getElementById('joinError').classList.add('hidden');
+}
+
+async function submitJoinRoom() {
+    const roomName = document.getElementById('joinRoomName').value.trim();
+    const password = document.getElementById('joinRoomPassword').value;
+    const errorEl = document.getElementById('joinError');
+    
+    if (!roomName || !password) {
+        errorEl.textContent = 'Room name and password are required';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+    
+    await window.chat.apiJoinRoom(roomName, password);
+    closeJoinModal();
 }
 
 // Initialize chat when DOM is ready

@@ -28,6 +28,9 @@
                     <span class="icon">📝</span> APPLICATIONS
                     <span class="badge" id="pendingCount">0</span>
                 </button>
+                <button class="tab-btn" data-tab="rooms">
+                    <span class="icon">📁</span> ROOMS
+                </button>
                 <button class="tab-btn" data-tab="users">
                     <span class="icon">👥</span> USERS
                 </button>
@@ -61,6 +64,42 @@
                     </table>
                     <div class="empty-message hidden" id="noApplications">
                         No pending applications
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Rooms Panel -->
+            <div class="admin-panel hidden" id="roomsPanel">
+                <div class="panel-header">
+                    <h2>ROOM MANAGEMENT</h2>
+                    <div class="header-actions">
+                        <button class="action-btn create" onclick="showCreateRoomModal()">
+                            [ + CREATE ROOM ]
+                        </button>
+                        <button class="refresh-btn" onclick="loadRooms()">
+                            [ REFRESH ]
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>NAME</th>
+                                <th>DESCRIPTION</th>
+                                <th>MEMBERS</th>
+                                <th>CREATED</th>
+                                <th>PASSWORD</th>
+                                <th>ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roomsTable">
+                            <!-- Rooms will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div class="empty-message hidden" id="noRooms">
+                        No rooms created yet
                     </div>
                 </div>
             </div>
@@ -124,6 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabBtns = document.querySelectorAll('.tab-btn');
     const panels = {
         'applications': document.getElementById('applicationsPanel'),
+        'rooms': document.getElementById('roomsPanel'),
         'users': document.getElementById('usersPanel'),
         'logs': document.getElementById('logsPanel')
     };
@@ -142,6 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Load data
             if (tab === 'applications') loadApplications();
+            else if (tab === 'rooms') loadRooms();
             else if (tab === 'users') loadUsers();
             else if (tab === 'logs') loadLogs();
         });
@@ -299,6 +340,177 @@ async function toggleUser(id, currentStatus) {
     }
 }
 
+// ========================================
+// Room Management
+// ========================================
+
+async function loadRooms() {
+    try {
+        const response = await fetch('/api/admin/rooms', {
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
+        const data = await response.json();
+        
+        const tbody = document.getElementById('roomsTable');
+        const noRooms = document.getElementById('noRooms');
+        
+        if (data.rooms.length === 0) {
+            tbody.innerHTML = '';
+            noRooms.classList.remove('hidden');
+            return;
+        }
+        
+        noRooms.classList.add('hidden');
+        tbody.innerHTML = data.rooms.map(room => `
+            <tr>
+                <td>${room.id}</td>
+                <td><strong>${escapeHtml(room.name)}</strong></td>
+                <td>${escapeHtml(room.description || '-')}</td>
+                <td>${room.member_count} / ${room.max_members}</td>
+                <td>${formatDate(room.created_at)}</td>
+                <td>
+                    <button class="action-btn" onclick="resetRoomPassword(${room.id}, '${room.name}')">
+                        [ RESET ]
+                    </button>
+                </td>
+                <td>
+                    <button class="action-btn" onclick="viewRoomMembers(${room.id}, '${room.name}')">
+                        [ MEMBERS ]
+                    </button>
+                    <button class="action-btn reject" onclick="deleteRoom(${room.id}, '${room.name}')">
+                        [ DELETE ]
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        console.error('Failed to load rooms:', err);
+    }
+}
+
+function showCreateRoomModal() {
+    document.getElementById('createRoomModal').classList.remove('hidden');
+    document.getElementById('newRoomName').focus();
+}
+
+function closeCreateRoomModal() {
+    document.getElementById('createRoomModal').classList.add('hidden');
+    document.getElementById('newRoomName').value = '';
+    document.getElementById('newRoomDescription').value = '';
+    document.getElementById('newRoomPassword').value = '';
+    document.getElementById('createRoomError').classList.add('hidden');
+}
+
+async function createRoom() {
+    const name = document.getElementById('newRoomName').value.trim();
+    const description = document.getElementById('newRoomDescription').value.trim();
+    const password = document.getElementById('newRoomPassword').value;
+    const errorEl = document.getElementById('createRoomError');
+    
+    if (!name || !password) {
+        errorEl.textContent = 'Room name and password are required';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/admin/rooms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.CSRF_TOKEN
+            },
+            body: JSON.stringify({ name, description, password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`Room created successfully!\n\nRoom: ${data.room.name}\nPassword: ${data.password}\n\nShare this password with users who should join.`);
+            closeCreateRoomModal();
+            loadRooms();
+        } else {
+            errorEl.textContent = data.error || 'Failed to create room';
+            errorEl.classList.remove('hidden');
+        }
+    } catch (err) {
+        errorEl.textContent = 'Error creating room';
+        errorEl.classList.remove('hidden');
+    }
+}
+
+async function resetRoomPassword(roomId, roomName) {
+    const newPassword = prompt(`Enter new password for room "${roomName}":`);
+    if (!newPassword) return;
+    
+    if (newPassword.length < 6) {
+        alert('Password must be at least 6 characters');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/rooms/${roomId}/password`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.CSRF_TOKEN
+            },
+            body: JSON.stringify({ password: newPassword })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`Password reset successfully!\n\nNew password: ${data.password}`);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to reset password'));
+        }
+    } catch (err) {
+        alert('Error resetting password');
+    }
+}
+
+async function viewRoomMembers(roomId, roomName) {
+    try {
+        const response = await fetch(`/api/admin/rooms/${roomId}/members`, {
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
+        const data = await response.json();
+        
+        if (data.members.length === 0) {
+            alert(`Room "${roomName}" has no members yet.`);
+            return;
+        }
+        
+        const memberList = data.members.map(m => `- ${m.username} (joined: ${formatDate(m.joined_at)})`).join('\n');
+        alert(`Members of "${roomName}":\n\n${memberList}`);
+    } catch (err) {
+        alert('Error loading members');
+    }
+}
+
+async function deleteRoom(roomId, roomName) {
+    if (!confirm(`DELETE room "${roomName}"?\n\nThis will remove all members and cannot be undone!`)) return;
+    
+    try {
+        const response = await fetch(`/api/admin/rooms/${roomId}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Room deleted');
+            loadRooms();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to delete room'));
+        }
+    } catch (err) {
+        alert('Error deleting room');
+    }
+}
+
 async function loadLogs() {
     try {
         const response = await fetch('/api/admin/audit-logs?limit=100', {
@@ -333,4 +545,35 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 </script>
+
+<!-- Create Room Modal -->
+<div class="modal hidden" id="createRoomModal">
+    <div class="modal-content terminal-style">
+        <div class="modal-header">
+            <h3>CREATE NEW ROOM</h3>
+            <button class="close-btn" onclick="closeCreateRoomModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Room Name:</label>
+                <input type="text" id="newRoomName" placeholder="e.g., project_alpha" class="terminal-input">
+                <small>Lowercase letters, numbers, underscores only</small>
+            </div>
+            <div class="form-group">
+                <label>Description (optional):</label>
+                <input type="text" id="newRoomDescription" placeholder="Brief description" class="terminal-input">
+            </div>
+            <div class="form-group">
+                <label>Secret Password:</label>
+                <input type="text" id="newRoomPassword" placeholder="Min 6 characters" class="terminal-input">
+                <small>Share this password with users who should join</small>
+            </div>
+            <div class="error-msg hidden" id="createRoomError"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="createRoom()">CREATE ROOM</button>
+            <button class="btn btn-secondary" onclick="closeCreateRoomModal()">CANCEL</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
