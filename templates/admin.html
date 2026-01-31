@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}Streamzy - Admin Panel{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="terminal-window fullscreen">
+        <div class="terminal-header">
+            <span class="terminal-title">ADMIN_TERMINAL :: CONTROL PANEL</span>
+            <div class="terminal-controls">
+                <a href="{{ url_for('chat') }}" class="control-btn" title="Back to Chat">
+                    <span class="icon">💬</span>
+                </a>
+                <button class="control-btn danger" id="logoutBtn" title="Logout">
+                    <span class="icon">⏻</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="terminal-body admin-body">
+            <!-- Navigation Tabs -->
+            <div class="admin-tabs">
+                <button class="tab-btn active" data-tab="applications">
+                    <span class="icon">📝</span> APPLICATIONS
+                    <span class="badge" id="pendingCount">0</span>
+                </button>
+                <button class="tab-btn" data-tab="users">
+                    <span class="icon">👥</span> USERS
+                </button>
+                <button class="tab-btn" data-tab="logs">
+                    <span class="icon">📋</span> AUDIT LOGS
+                </button>
+            </div>
+            
+            <!-- Applications Panel -->
+            <div class="admin-panel" id="applicationsPanel">
+                <div class="panel-header">
+                    <h2>PENDING APPLICATIONS</h2>
+                    <button class="refresh-btn" onclick="loadApplications()">
+                        [ REFRESH ]
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>EMAIL</th>
+                                <th>DATE</th>
+                                <th>STATUS</th>
+                                <th>ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="applicationsTable">
+                            <!-- Applications will be loaded here -->
+                        </tbody>
+                    </table>
+                    <div class="empty-message hidden" id="noApplications">
+                        No pending applications
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Users Panel -->
+            <div class="admin-panel hidden" id="usersPanel">
+                <div class="panel-header">
+                    <h2>USER MANAGEMENT</h2>
+                    <button class="refresh-btn" onclick="loadUsers()">
+                        [ REFRESH ]
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>USERNAME</th>
+                                <th>CREATED</th>
+                                <th>LAST ACTIVE</th>
+                                <th>STATUS</th>
+                                <th>ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTable">
+                            <!-- Users will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Audit Logs Panel -->
+            <div class="admin-panel hidden" id="logsPanel">
+                <div class="panel-header">
+                    <h2>SECURITY AUDIT LOGS</h2>
+                    <button class="refresh-btn" onclick="loadLogs()">
+                        [ REFRESH ]
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <div class="log-viewer" id="logViewer">
+                        <!-- Logs will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="terminal-footer">
+            <span class="status-indicator online"></span>
+            <span class="status-text">ADMIN ACCESS ACTIVE</span>
+            <span class="admin-badge">🔐 ELEVATED PRIVILEGES</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const panels = {
+        'applications': document.getElementById('applicationsPanel'),
+        'users': document.getElementById('usersPanel'),
+        'logs': document.getElementById('logsPanel')
+    };
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tab = this.dataset.tab;
+            
+            // Update active tab
+            tabBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show panel
+            Object.values(panels).forEach(p => p.classList.add('hidden'));
+            panels[tab].classList.remove('hidden');
+            
+            // Load data
+            if (tab === 'applications') loadApplications();
+            else if (tab === 'users') loadUsers();
+            else if (tab === 'logs') loadLogs();
+        });
+    });
+    
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async function() {
+        await fetch('/api/logout', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
+        window.location.href = '/login';
+    });
+    
+    // Load initial data
+    loadApplications();
+});
+
+async function loadApplications() {
+    try {
+        const response = await fetch('/api/admin/applications', {
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
+        const data = await response.json();
+        
+        const tbody = document.getElementById('applicationsTable');
+        const noApps = document.getElementById('noApplications');
+        const pendingCount = document.getElementById('pendingCount');
+        
+        pendingCount.textContent = data.applications.length;
+        
+        if (data.applications.length === 0) {
+            tbody.innerHTML = '';
+            noApps.classList.remove('hidden');
+            return;
+        }
+        
+        noApps.classList.add('hidden');
+        tbody.innerHTML = data.applications.map(app => `
+            <tr>
+                <td>${app.id}</td>
+                <td>${escapeHtml(app.email)}</td>
+                <td>${formatDate(app.created_at)}</td>
+                <td><span class="status-badge ${app.status}">${app.status.toUpperCase()}</span></td>
+                <td>
+                    <button class="action-btn approve" onclick="approveApplication(${app.id})">
+                        [ APPROVE ]
+                    </button>
+                    <button class="action-btn reject" onclick="rejectApplication(${app.id})">
+                        [ REJECT ]
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        console.error('Failed to load applications:', err);
+    }
+}
+
+async function approveApplication(id) {
+    if (!confirm('Approve this application?')) return;
+    
+    try {
+        const response = await fetch(`/api/admin/applications/${id}/approve`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`Application approved! Username: ${data.user.username}`);
+            loadApplications();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to approve'));
+        }
+    } catch (err) {
+        alert('Error approving application');
+    }
+}
+
+async function rejectApplication(id) {
+    const reason = prompt('Rejection reason (optional):');
+    
+    try {
+        const response = await fetch(`/api/admin/applications/${id}/reject`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.CSRF_TOKEN
+            },
+            body: JSON.stringify({ reason: reason })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('Application rejected');
+            loadApplications();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to reject'));
+        }
+    } catch (err) {
+        alert('Error rejecting application');
+    }
+}
+
+async function loadUsers() {
+    try {
+        const response = await fetch('/api/admin/users', {
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
+        const data = await response.json();
+        
+        const tbody = document.getElementById('usersTable');
+        
+        tbody.innerHTML = data.users.map(user => `
+            <tr>
+                <td>${user.id}</td>
+                <td>${escapeHtml(user.username)} ${user.is_admin ? '<span class="admin-tag">ADMIN</span>' : ''}</td>
+                <td>${formatDate(user.created_at)}</td>
+                <td>${user.last_activity ? formatDate(user.last_activity) : 'Never'}</td>
+                <td><span class="status-badge ${user.is_active ? 'active' : 'inactive'}">${user.is_active ? 'ACTIVE' : 'INACTIVE'}</span></td>
+                <td>
+                    <button class="action-btn toggle" onclick="toggleUser(${user.id}, ${user.is_active})">
+                        [ ${user.is_active ? 'DISABLE' : 'ENABLE'} ]
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        console.error('Failed to load users:', err);
+    }
+}
+
+async function toggleUser(id, currentStatus) {
+    const action = currentStatus ? 'disable' : 'enable';
+    if (!confirm(`${action.toUpperCase()} this user?`)) return;
+    
+    try {
+        const response = await fetch(`/api/admin/users/${id}/toggle`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loadUsers();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to toggle user'));
+        }
+    } catch (err) {
+        alert('Error toggling user');
+    }
+}
+
+async function loadLogs() {
+    try {
+        const response = await fetch('/api/admin/audit-logs?limit=100', {
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
+        const data = await response.json();
+        
+        const viewer = document.getElementById('logViewer');
+        
+        viewer.innerHTML = data.logs.map(log => `
+            <div class="log-entry ${log.event_type.includes('failed') || log.event_type.includes('blocked') ? 'warning' : ''}">
+                <span class="log-time">[${formatDate(log.created_at)}]</span>
+                <span class="log-type">${log.event_type.toUpperCase()}</span>
+                <span class="log-desc">${escapeHtml(log.description)}</span>
+                <span class="log-ip">${log.ip_address || 'N/A'}</span>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Failed to load logs:', err);
+    }
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    return date.toLocaleString();
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

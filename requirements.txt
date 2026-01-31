@@ -1,0 +1,36 @@
+# Streamzy - Secure Terminal Chat Platform
+# Python Dependencies
+
+# Core Framework
+Flask==3.0.0
+Flask-SocketIO==5.3.6
+Flask-SQLAlchemy==3.1.1
+Flask-WTF==1.2.1
+Flask-Bcrypt==1.0.1
+
+# WebSocket Support
+python-socketio>=5.10.0
+python-engineio>=4.8.0
+eventlet>=0.35.0
+gevent>=24.0.0
+gevent-websocket>=0.10.1
+
+# Security & Encryption
+cryptography==41.0.7
+bcrypt==4.1.2
+
+# Database
+SQLAlchemy==2.0.23
+
+# Email
+secure-smtplib==0.1.1
+
+# Environment & Configuration
+python-dotenv==1.0.0
+
+# Utilities
+Werkzeug==3.0.1
+itsdangerous==2.1.2
+
+# Production Server
+gunicorn==21.2.0

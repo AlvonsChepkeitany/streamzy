@@ -1,0 +1,261 @@
+/**
+ * Streamzy Admin Panel CSS
+ */
+
+.admin-container {
+    width: 100%;
+    height: 100vh;
+}
+
+.admin-body {
+    padding: var(--spacing-md);
+    overflow-y: auto;
+}
+
+/* Tabs */
+.admin-tabs {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    border-bottom: var(--border-dim);
+    padding-bottom: var(--spacing-md);
+}
+
+.tab-btn {
+    background: transparent;
+    border: var(--border-dim);
+    color: var(--text-dim);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    font-family: var(--font-terminal);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.tab-btn:hover {
+    color: var(--primary-green);
+    border-color: var(--primary-green);
+}
+
+.tab-btn.active {
+    background: var(--dark-green);
+    color: var(--primary-green);
+    border-color: var(--primary-green);
+}
+
+.tab-btn .badge {
+    background: var(--accent-red);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+}
+
+/* Panels */
+.admin-panel {
+    background: var(--bg-secondary);
+    border: var(--border-dim);
+    border-radius: 4px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-bottom: var(--border-dim);
+}
+
+.panel-header h2 {
+    font-size: 14px;
+    color: var(--primary-green);
+    text-shadow: var(--glow-green);
+}
+
+.refresh-btn {
+    background: transparent;
+    border: var(--border-dim);
+    color: var(--text-dim);
+    padding: 4px 12px;
+    font-family: var(--font-terminal);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+    color: var(--primary-green);
+    border-color: var(--primary-green);
+}
+
+.panel-content {
+    padding: var(--spacing-md);
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Tables */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    text-align: left;
+    border-bottom: var(--border-dim);
+}
+
+.admin-table th {
+    color: var(--text-dim);
+    font-weight: normal;
+    text-transform: uppercase;
+    font-size: 11px;
+}
+
+.admin-table td {
+    color: var(--text-primary);
+}
+
+.admin-table tr:hover td {
+    background: var(--bg-tertiary);
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.status-badge.pending {
+    background: var(--accent-orange);
+    color: black;
+}
+
+.status-badge.approved,
+.status-badge.active {
+    background: var(--primary-green);
+    color: black;
+}
+
+.status-badge.rejected,
+.status-badge.inactive {
+    background: var(--accent-red);
+    color: white;
+}
+
+.admin-tag {
+    background: var(--accent-purple);
+    color: white;
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-size: 9px;
+    margin-left: 4px;
+}
+
+/* Action Buttons */
+.action-btn {
+    background: transparent;
+    border: var(--border-dim);
+    color: var(--text-dim);
+    padding: 2px 8px;
+    font-family: var(--font-terminal);
+    font-size: 10px;
+    cursor: pointer;
+    margin-right: 4px;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    color: var(--primary-green);
+    border-color: var(--primary-green);
+}
+
+.action-btn.approve:hover {
+    color: var(--primary-green);
+    border-color: var(--primary-green);
+}
+
+.action-btn.reject:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+}
+
+/* Log Viewer */
+.log-viewer {
+    font-size: 11px;
+    line-height: 1.8;
+}
+
+.log-entry {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.log-entry.warning {
+    color: var(--accent-orange);
+}
+
+.log-time {
+    color: var(--text-muted);
+    min-width: 150px;
+}
+
+.log-type {
+    color: var(--accent-cyan);
+    min-width: 150px;
+}
+
+.log-desc {
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.log-ip {
+    color: var(--text-muted);
+    min-width: 100px;
+    text-align: right;
+}
+
+/* Empty States */
+.empty-message {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-muted);
+}
+
+/* Admin Footer */
+.admin-badge {
+    margin-left: auto;
+    color: var(--accent-purple);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .admin-table {
+        font-size: 11px;
+    }
+    
+    .admin-table th,
+    .admin-table td {
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+    
+    .log-entry {
+        flex-wrap: wrap;
+    }
+}

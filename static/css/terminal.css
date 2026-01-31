@@ -1,0 +1,556 @@
+/**
+ * Streamzy Terminal CSS
+ * Matrix-style hacker terminal aesthetics
+ */
+
+/* ============================================
+   CSS Variables
+   ============================================ */
+:root {
+    /* Matrix Green Theme */
+    --primary-green: #00ff00;
+    --secondary-green: #00cc00;
+    --dim-green: #00aa00;
+    --dark-green: #003300;
+    --matrix-green: #20c20e;
+    
+    /* Backgrounds */
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #111111;
+    --bg-tertiary: #1a1a1a;
+    --bg-terminal: #0d0d0d;
+    
+    /* Text Colors */
+    --text-primary: #00ff00;
+    --text-secondary: #00cc00;
+    --text-dim: #008800;
+    --text-muted: #555555;
+    
+    /* Accent Colors */
+    --accent-orange: #ff6600;
+    --accent-red: #ff0000;
+    --accent-yellow: #ffff00;
+    --accent-cyan: #00ffff;
+    --accent-purple: #ff00ff;
+    
+    /* Effects */
+    --glow-green: 0 0 10px rgba(0, 255, 0, 0.5), 0 0 20px rgba(0, 255, 0, 0.3);
+    --glow-green-strong: 0 0 10px rgba(0, 255, 0, 0.8), 0 0 30px rgba(0, 255, 0, 0.5), 0 0 50px rgba(0, 255, 0, 0.3);
+    --glow-red: 0 0 10px rgba(255, 0, 0, 0.5);
+    
+    /* Fonts */
+    --font-terminal: 'Fira Code', 'Share Tech Mono', 'Courier New', monospace;
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    
+    /* Border */
+    --border-terminal: 1px solid var(--primary-green);
+    --border-dim: 1px solid var(--dark-green);
+}
+
+/* ============================================
+   Reset & Base Styles
+   ============================================ */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: var(--font-terminal);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+    background: var(--primary-green);
+    color: var(--bg-primary);
+}
+
+/* ============================================
+   CRT & Scanline Effects
+   ============================================ */
+.scanlines {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    background: linear-gradient(
+        to bottom,
+        transparent 50%,
+        rgba(0, 0, 0, 0.1) 51%
+    );
+    background-size: 100% 4px;
+    animation: scanlines 0.1s linear infinite;
+}
+
+@keyframes scanlines {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 4px; }
+}
+
+.crt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9998;
+    background: radial-gradient(
+        ellipse at center,
+        transparent 0%,
+        rgba(0, 0, 0, 0.2) 80%,
+        rgba(0, 0, 0, 0.4) 100%
+    );
+}
+
+/* ============================================
+   Terminal Container
+   ============================================ */
+.terminal-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-md);
+}
+
+.center-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ============================================
+   Terminal Window
+   ============================================ */
+.terminal-window {
+    background: var(--bg-terminal);
+    border: var(--border-terminal);
+    border-radius: 8px;
+    box-shadow: var(--glow-green), 0 0 50px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.terminal-window.small-terminal {
+    width: 100%;
+    max-width: 700px;
+    max-height: 90vh;
+}
+
+.terminal-window.fullscreen {
+    width: 100%;
+    height: 100%;
+}
+
+/* Terminal Header */
+.terminal-header {
+    background: linear-gradient(180deg, var(--bg-tertiary), var(--bg-secondary));
+    padding: var(--spacing-sm) var(--spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: var(--border-terminal);
+}
+
+.terminal-title {
+    color: var(--primary-green);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: var(--glow-green);
+}
+
+.terminal-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.control {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.control.close { background: #ff5f56; }
+.control.minimize { background: #ffbd2e; }
+.control.maximize { background: #27c93f; }
+
+.control:hover {
+    filter: brightness(1.2);
+    box-shadow: 0 0 5px currentColor;
+}
+
+/* Terminal Body */
+.terminal-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: var(--spacing-lg);
+}
+
+/* Terminal Content */
+.terminal-content {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Terminal Footer */
+.terminal-footer {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-secondary);
+    border-top: var(--border-dim);
+    font-size: 11px;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.online {
+    background: var(--primary-green);
+    box-shadow: var(--glow-green);
+}
+
+.status-indicator.offline {
+    background: var(--accent-red);
+    box-shadow: var(--glow-red);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-text {
+    color: var(--text-dim);
+}
+
+.encryption-badge {
+    margin-left: auto;
+    color: var(--accent-cyan);
+}
+
+/* ============================================
+   ASCII Art
+   ============================================ */
+.ascii-header {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.ascii-art {
+    font-size: 8px;
+    line-height: 1.1;
+    color: var(--primary-green);
+    text-shadow: var(--glow-green);
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.ascii-art.small {
+    font-size: 6px;
+}
+
+.ascii-art.error {
+    color: var(--accent-red);
+    text-shadow: var(--glow-red);
+}
+
+.tagline {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-top: var(--spacing-sm);
+    letter-spacing: 2px;
+}
+
+/* ============================================
+   Output Lines
+   ============================================ */
+.output-line {
+    margin-bottom: var(--spacing-xs);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
+}
+
+@keyframes fadeIn {
+    to { opacity: 1; }
+}
+
+.output-line.system .text {
+    color: var(--accent-cyan);
+}
+
+.output-line.success .text {
+    color: var(--primary-green);
+}
+
+.output-line.error .text {
+    color: var(--accent-red);
+}
+
+.output-line.warning .text {
+    color: var(--accent-orange);
+}
+
+.output-line.separator {
+    margin: var(--spacing-md) 0;
+    opacity: 0.5;
+}
+
+.prompt {
+    color: var(--accent-orange);
+    font-weight: 600;
+}
+
+.text {
+    color: var(--text-primary);
+}
+
+.timestamp {
+    color: var(--text-muted);
+    font-size: 11px;
+    min-width: 70px;
+}
+
+/* ============================================
+   Form Elements
+   ============================================ */
+.form-section {
+    margin: var(--spacing-lg) 0;
+}
+
+.input-group {
+    margin: var(--spacing-md) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.input-label {
+    flex-shrink: 0;
+}
+
+.terminal-input {
+    flex: 1;
+    background: var(--bg-secondary);
+    border: var(--border-dim);
+    color: var(--text-primary);
+    font-family: var(--font-terminal);
+    font-size: 14px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    outline: none;
+    transition: all 0.2s;
+}
+
+.terminal-input:focus {
+    border-color: var(--primary-green);
+    box-shadow: var(--glow-green);
+}
+
+.terminal-input::placeholder {
+    color: var(--text-muted);
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* Buttons */
+.button-group {
+    margin: var(--spacing-lg) 0;
+    display: flex;
+    justify-content: center;
+}
+
+.terminal-btn {
+    background: transparent;
+    border: var(--border-terminal);
+    color: var(--primary-green);
+    font-family: var(--font-terminal);
+    font-size: 14px;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.terminal-btn:hover:not(:disabled) {
+    background: var(--primary-green);
+    color: var(--bg-primary);
+    box-shadow: var(--glow-green-strong);
+}
+
+.terminal-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Links */
+.nav-links {
+    margin-top: var(--spacing-lg);
+    text-align: center;
+}
+
+.terminal-link {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.terminal-link:hover {
+    color: var(--primary-green);
+    text-shadow: var(--glow-green);
+}
+
+/* ============================================
+   Messages
+   ============================================ */
+.success-message,
+.error-message,
+.loading-message {
+    margin: var(--spacing-md) 0;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.shake {
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+
+.loading-dots::after {
+    content: '';
+    animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+    0% { content: ''; }
+    33% { content: '.'; }
+    66% { content: '..'; }
+    100% { content: '...'; }
+}
+
+/* ============================================
+   Typing Animation
+   ============================================ */
+.typing-text {
+    overflow: hidden;
+    border-right: 2px solid var(--primary-green);
+    white-space: nowrap;
+    animation: typing 2s steps(40) 1s forwards, cursor 0.5s step-end infinite;
+}
+
+@keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+@keyframes cursor {
+    50% { border-color: transparent; }
+}
+
+/* ============================================
+   Scrollbar
+   ============================================ */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--dark-green);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--dim-green);
+}
+
+/* ============================================
+   Error Pages
+   ============================================ */
+.error-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+    text-align: center;
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 768px) {
+    .ascii-art {
+        font-size: 5px;
+    }
+    
+    .terminal-body {
+        padding: var(--spacing-md);
+    }
+    
+    .terminal-window.small-terminal {
+        max-width: 100%;
+        border-radius: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .ascii-art {
+        display: none;
+    }
+    
+    .tagline {
+        font-size: 14px;
+    }
+}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}404 - Not Found{% endblock %}
+
+{% block content %}
+<div class="terminal-container center-content">
+    <div class="terminal-window small-terminal">
+        <div class="terminal-header">
+            <span class="terminal-title">ERROR_404</span>
+            <div class="terminal-controls">
+                <span class="control close"></span>
+                <span class="control minimize"></span>
+                <span class="control maximize"></span>
+            </div>
+        </div>
+        
+        <div class="terminal-body">
+            <div class="terminal-content error-page">
+                <pre class="ascii-art error">
+  _  _    ___  _  _   
+ | || |  / _ \| || |  
+ | || |_| | | | || |_ 
+ |__   _| | | |__   _|
+    | | | |_| |  | |  
+    |_|  \___/   |_|  
+                      
+     NOT FOUND
+                </pre>
+                
+                <div class="output-line error">
+                    <span class="prompt">ERROR://</span>
+                    <span class="text">The requested resource could not be located</span>
+                </div>
+                
+                <div class="output-line">
+                    <span class="prompt">SYSTEM://</span>
+                    <span class="text">PATH: {{ request.path }}</span>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="{{ url_for('index') }}" class="terminal-link">
+                        [ RETURN TO MAIN TERMINAL ]
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

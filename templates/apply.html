@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Streamzy - Apply for Access{% endblock %}
+
+{% block content %}
+<div class="terminal-container center-content">
+    <div class="terminal-window small-terminal">
+        <div class="terminal-header">
+            <span class="terminal-title">APPLICATION_TERMINAL</span>
+            <div class="terminal-controls">
+                <span class="control close"></span>
+                <span class="control minimize"></span>
+                <span class="control maximize"></span>
+            </div>
+        </div>
+        
+        <div class="terminal-body">
+            <div class="ascii-header">
+<pre class="ascii-art">
+ ███████╗████████╗██████╗ ███████╗ █████╗ ███╗   ███╗███████╗██╗   ██╗
+ ██╔════╝╚══██╔══╝██╔══██╗██╔════╝██╔══██╗████╗ ████║╚══███╔╝╚██╗ ██╔╝
+ ███████╗   ██║   ██████╔╝█████╗  ███████║██╔████╔██║  ███╔╝  ╚████╔╝ 
+ ╚════██║   ██║   ██╔══██╗██╔══╝  ██╔══██║██║╚██╔╝██║ ███╔╝    ╚██╔╝  
+ ███████║   ██║   ██║  ██║███████╗██║  ██║██║ ╚═╝ ██║███████╗   ██║   
+ ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝   ╚═╝   
+</pre>
+                <p class="tagline">[ SECURE COMMUNICATIONS PLATFORM ]</p>
+            </div>
+            
+            <div class="terminal-content">
+                <div class="output-line system">
+                    <span class="prompt">SYSTEM://</span>
+                    <span class="typing-text">Initializing application portal...</span>
+                </div>
+                
+                <div class="output-line system">
+                    <span class="prompt">STATUS://</span>
+                    <span class="text">Access requires application approval</span>
+                </div>
+                
+                <div class="form-section" id="applicationForm">
+                    <div class="output-line">
+                        <span class="prompt">APPLY://</span>
+                        <span class="text">Enter your email to request access</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="email" class="input-label">
+                            <span class="prompt">EMAIL&gt;</span>
+                        </label>
+                        <input type="email" 
+                               id="email" 
+                               class="terminal-input" 
+                               placeholder="_"
+                               autocomplete="email"
+                               required>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="button" id="submitBtn" class="terminal-btn">
+                            [ SUBMIT APPLICATION ]
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="successMessage" class="success-message hidden">
+                    <div class="output-line success">
+                        <span class="prompt">SUCCESS://</span>
+                        <span class="text">Application submitted successfully!</span>
+                    </div>
+                    <div class="output-line">
+                        <span class="prompt">INFO://</span>
+                        <span class="text">Check your email for confirmation.</span>
+                    </div>
+                    <div class="output-line">
+                        <span class="prompt">INFO://</span>
+                        <span class="text">Credentials will be sent upon approval.</span>
+                    </div>
+                </div>
+                
+                <div id="errorMessage" class="error-message hidden">
+                    <div class="output-line error">
+                        <span class="prompt">ERROR://</span>
+                        <span class="text" id="errorText"></span>
+                    </div>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="{{ url_for('login') }}" class="terminal-link">
+                        [ ALREADY HAVE ACCESS? LOGIN HERE ]
+                    </a>
+                </div>
+            </div>
+            
+            <div class="terminal-footer">
+                <span class="status-indicator online"></span>
+                <span class="status-text">SECURE CONNECTION</span>
+                <span class="encryption-badge">🔒 E2E ENCRYPTED</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const emailInput = document.getElementById('email');
+    const submitBtn = document.getElementById('submitBtn');
+    const applicationForm = document.getElementById('applicationForm');
+    const successMessage = document.getElementById('successMessage');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    
+    // Submit application
+    submitBtn.addEventListener('click', async function() {
+        const email = emailInput.value.trim();
+        
+        if (!email) {
+            showError('Email is required');
+            return;
+        }
+        
+        if (!isValidEmail(email)) {
+            showError('Invalid email format');
+            return;
+        }
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = '[ PROCESSING... ]';
+        
+        try {
+            const response = await fetch('/api/apply', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.CSRF_TOKEN
+                },
+                body: JSON.stringify({ email: email })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                applicationForm.classList.add('hidden');
+                successMessage.classList.remove('hidden');
+                errorMessage.classList.add('hidden');
+            } else {
+                showError(data.error || 'Application failed');
+            }
+        } catch (err) {
+            showError('Connection error. Please try again.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '[ SUBMIT APPLICATION ]';
+        }
+    });
+    
+    // Enter key submission
+    emailInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            submitBtn.click();
+        }
+    });
+    
+    function showError(message) {
+        errorText.textContent = message;
+        errorMessage.classList.remove('hidden');
+        successMessage.classList.add('hidden');
+    }
+    
+    function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+    
+    // Focus on email input
+    emailInput.focus();
+});
+</script>
+{% endblock %}

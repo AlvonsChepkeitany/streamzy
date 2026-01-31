@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  streamzy:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-change-this-in-production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-generate-a-fernet-key}
+      - DATABASE_URL=sqlite:///instance/streamzy.db
+    volumes:
+      - streamzy_data:/app/instance
+    restart: unless-stopped
+
+volumes:
+  streamzy_data:

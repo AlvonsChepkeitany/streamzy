@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Streamzy - Access Terminal{% endblock %}
+
+{% block content %}
+<div class="terminal-container center-content">
+    <div class="terminal-window small-terminal">
+        <div class="terminal-header">
+            <span class="terminal-title">ACCESS_TERMINAL</span>
+            <div class="terminal-controls">
+                <span class="control close"></span>
+                <span class="control minimize"></span>
+                <span class="control maximize"></span>
+            </div>
+        </div>
+        
+        <div class="terminal-body">
+            <div class="ascii-header">
+<pre class="ascii-art small">
+ ███████╗████████╗██████╗ ███████╗ █████╗ ███╗   ███╗███████╗██╗   ██╗
+ ██╔════╝╚══██╔══╝██╔══██╗██╔════╝██╔══██╗████╗ ████║╚══███╔╝╚██╗ ██╔╝
+ ███████╗   ██║   ██████╔╝█████╗  ███████║██╔████╔██║  ███╔╝  ╚████╔╝ 
+ ╚════██║   ██║   ██╔══██╗██╔══╝  ██╔══██║██║╚██╔╝██║ ███╔╝    ╚██╔╝  
+ ███████║   ██║   ██║  ██║███████╗██║  ██║██║ ╚═╝ ██║███████╗   ██║   
+ ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝   ╚═╝   
+</pre>
+                <p class="tagline">[ AUTHENTICATION REQUIRED ]</p>
+            </div>
+            
+            <div class="terminal-content">
+                <div class="boot-sequence" id="bootSequence">
+                    <div class="output-line system typing-line" data-delay="0">
+                        <span class="prompt">SYSTEM://</span>
+                        <span class="text">Initializing secure connection...</span>
+                    </div>
+                    <div class="output-line system typing-line" data-delay="500">
+                        <span class="prompt">CRYPTO://</span>
+                        <span class="text">Encryption protocols active</span>
+                    </div>
+                    <div class="output-line system typing-line" data-delay="1000">
+                        <span class="prompt">STATUS://</span>
+                        <span class="text">Ready for authentication</span>
+                    </div>
+                </div>
+                
+                <div class="form-section" id="loginForm">
+                    <div class="output-line">
+                        <span class="prompt">AUTH://</span>
+                        <span class="text">Enter your credentials</span>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="username" class="input-label">
+                            <span class="prompt">USER&gt;</span>
+                        </label>
+                        <input type="text" 
+                               id="username" 
+                               class="terminal-input" 
+                               placeholder="_"
+                               autocomplete="username"
+                               required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="password" class="input-label">
+                            <span class="prompt">PASS&gt;</span>
+                        </label>
+                        <input type="password" 
+                               id="password" 
+                               class="terminal-input" 
+                               placeholder="_"
+                               autocomplete="current-password"
+                               required>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="button" id="loginBtn" class="terminal-btn">
+                            [ AUTHENTICATE ]
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="errorMessage" class="error-message hidden">
+                    <div class="output-line error">
+                        <span class="prompt">ERROR://</span>
+                        <span class="text" id="errorText"></span>
+                    </div>
+                </div>
+                
+                <div id="loadingMessage" class="loading-message hidden">
+                    <div class="output-line">
+                        <span class="prompt">AUTH://</span>
+                        <span class="text">Verifying credentials<span class="loading-dots"></span></span>
+                    </div>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="{{ url_for('apply_page') }}" class="terminal-link">
+                        [ REQUEST ACCESS ]
+                    </a>
+                </div>
+            </div>
+            
+            <div class="terminal-footer">
+                <span class="status-indicator online"></span>
+                <span class="status-text">SECURE CONNECTION</span>
+                <span class="encryption-badge">🔒 AES-256</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginForm = document.getElementById('loginForm');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    const loadingMessage = document.getElementById('loadingMessage');
+    
+    // Boot sequence animation
+    const bootLines = document.querySelectorAll('.typing-line');
+    bootLines.forEach((line, index) => {
+        const delay = parseInt(line.dataset.delay) || 0;
+        line.style.opacity = '0';
+        setTimeout(() => {
+            line.style.opacity = '1';
+            line.classList.add('typed');
+        }, delay);
+    });
+    
+    // Login handler
+    loginBtn.addEventListener('click', async function() {
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value;
+        
+        if (!username || !password) {
+            showError('Username and password required');
+            return;
+        }
+        
+        loginBtn.disabled = true;
+        loginBtn.textContent = '[ AUTHENTICATING... ]';
+        loadingMessage.classList.remove('hidden');
+        errorMessage.classList.add('hidden');
+        
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.CSRF_TOKEN
+                },
+                body: JSON.stringify({ 
+                    username: username,
+                    password: password 
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                // Success animation
+                loadingMessage.innerHTML = `
+                    <div class="output-line success">
+                        <span class="prompt">SUCCESS://</span>
+                        <span class="text">Access granted. Redirecting...</span>
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    window.location.href = '/chat';
+                }, 1000);
+            } else {
+                showError(data.error || 'Authentication failed');
+                loadingMessage.classList.add('hidden');
+            }
+        } catch (err) {
+            showError('Connection error. Please try again.');
+            loadingMessage.classList.add('hidden');
+        } finally {
+            loginBtn.disabled = false;
+            loginBtn.textContent = '[ AUTHENTICATE ]';
+        }
+    });
+    
+    // Enter key submission
+    [usernameInput, passwordInput].forEach(input => {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loginBtn.click();
+            }
+        });
+    });
+    
+    function showError(message) {
+        errorText.textContent = message;
+        errorMessage.classList.remove('hidden');
+        
+        // Shake effect
+        errorMessage.classList.add('shake');
+        setTimeout(() => errorMessage.classList.remove('shake'), 500);
+    }
+    
+    // Focus on username input
+    setTimeout(() => usernameInput.focus(), 1500);
+});
+</script>
+{% endblock %}

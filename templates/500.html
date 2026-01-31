@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}500 - Server Error{% endblock %}
+
+{% block content %}
+<div class="terminal-container center-content">
+    <div class="terminal-window small-terminal">
+        <div class="terminal-header">
+            <span class="terminal-title">ERROR_500</span>
+            <div class="terminal-controls">
+                <span class="control close"></span>
+                <span class="control minimize"></span>
+                <span class="control maximize"></span>
+            </div>
+        </div>
+        
+        <div class="terminal-body">
+            <div class="terminal-content error-page">
+                <pre class="ascii-art error">
+  _____ ___   ___  
+ | ____/ _ \ / _ \ 
+ |  _|| | | | | | |
+ | |__| |_| | |_| |
+ |_____\___/ \___/ 
+                   
+  SYSTEM FAILURE
+                </pre>
+                
+                <div class="output-line error">
+                    <span class="prompt">CRITICAL://</span>
+                    <span class="text">Internal system error occurred</span>
+                </div>
+                
+                <div class="output-line">
+                    <span class="prompt">SYSTEM://</span>
+                    <span class="text">The error has been logged</span>
+                </div>
+                
+                <div class="output-line">
+                    <span class="prompt">ADVICE://</span>
+                    <span class="text">Please try again later</span>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="{{ url_for('index') }}" class="terminal-link">
+                        [ RETURN TO MAIN TERMINAL ]
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

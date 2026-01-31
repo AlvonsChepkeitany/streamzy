@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Streamzy - Terminal Chat{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <!-- Sidebar - Users Panel -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3 class="sidebar-title">
+                <span class="icon">👥</span> ONLINE
+            </h3>
+            <span class="user-count" id="userCount">0</span>
+        </div>
+        <div class="user-list" id="userList">
+            <!-- Users will be populated here -->
+        </div>
+        <div class="sidebar-footer">
+            <div class="current-room">
+                <span class="label">ROOM:</span>
+                <span class="room-name" id="currentRoom">general</span>
+            </div>
+        </div>
+    </aside>
+    
+    <!-- Main Terminal Area -->
+    <main class="main-terminal">
+        <div class="terminal-window fullscreen">
+            <div class="terminal-header">
+                <span class="terminal-title">
+                    STREAMZY_TERMINAL :: {{ user.username }}@general
+                </span>
+                <div class="terminal-controls">
+                    <button class="control-btn" id="toggleSidebar" title="Toggle Users">
+                        <span class="icon">☰</span>
+                    </button>
+                    <button class="control-btn" id="clearTerminal" title="Clear Terminal">
+                        <span class="icon">⌫</span>
+                    </button>
+                    <button class="control-btn danger" id="logoutBtn" title="Logout">
+                        <span class="icon">⏻</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="terminal-body" id="terminalBody">
+                <div class="terminal-output" id="terminalOutput">
+                    <!-- Welcome message -->
+                    <div class="output-line system">
+                        <pre class="ascii-art welcome">
+ ╔═══════════════════════════════════════════════════════════════════╗
+ ║  ███████╗████████╗██████╗ ███████╗ █████╗ ███╗   ███╗███████╗██╗   ██╗  ║
+ ║  ██╔════╝╚══██╔══╝██╔══██╗██╔════╝██╔══██╗████╗ ████║╚══███╔╝╚██╗ ██╔╝  ║
+ ║  ███████╗   ██║   ██████╔╝█████╗  ███████║██╔████╔██║  ███╔╝  ╚████╔╝   ║
+ ║  ╚════██║   ██║   ██╔══██╗██╔══╝  ██╔══██║██║╚██╔╝██║ ███╔╝    ╚██╔╝    ║
+ ║  ███████║   ██║   ██║  ██║███████╗██║  ██║██║ ╚═╝ ██║███████╗   ██║     ║
+ ║  ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝   ╚═╝     ║
+ ╚═══════════════════════════════════════════════════════════════════╝
+                        </pre>
+                    </div>
+                    <div class="output-line system">
+                        <span class="timestamp">[{{ "now"|default("00:00:00") }}]</span>
+                        <span class="prompt">SYSTEM://</span>
+                        <span class="text">Welcome to Streamzy Secure Communications</span>
+                    </div>
+                    <div class="output-line system">
+                        <span class="timestamp"></span>
+                        <span class="prompt">SYSTEM://</span>
+                        <span class="text">All messages are end-to-end encrypted</span>
+                    </div>
+                    <div class="output-line system">
+                        <span class="timestamp"></span>
+                        <span class="prompt">SYSTEM://</span>
+                        <span class="text">Type /help for available commands</span>
+                    </div>
+                    <div class="output-line system separator">
+                        <span class="text">═══════════════════════════════════════════════════════════════════</span>
+                    </div>
+                </div>
+                
+                <!-- Typing indicator -->
+                <div class="typing-indicator hidden" id="typingIndicator">
+                    <span class="typing-user"></span> is typing<span class="typing-dots">...</span>
+                </div>
+            </div>
+            
+            <!-- Input area -->
+            <div class="terminal-input-area">
+                <div class="input-line">
+                    <span class="input-prompt">
+                        <span class="username">{{ user.username }}</span>
+                        <span class="separator">@</span>
+                        <span class="room">general</span>
+                        <span class="cursor-symbol">&gt;</span>
+                    </span>
+                    <input type="text" 
+                           id="messageInput" 
+                           class="terminal-input-field"
+                           placeholder="Enter message or /help for commands"
+                           autocomplete="off"
+                           maxlength="2000">
+                </div>
+                <div class="input-info">
+                    <span class="char-count">
+                        <span id="charCount">0</span>/2000
+                    </span>
+                    <span class="connection-status" id="connectionStatus">
+                        <span class="status-dot connecting"></span>
+                        <span class="status-text">Connecting...</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Hidden data for JS -->
+<script>
+    window.currentUser = {
+        id: {{ user.id }},
+        username: "{{ user.username }}",
+        isAdmin: {{ 'true' if user.is_admin else 'false' }}
+    };
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/terminal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}
